@@ -1,0 +1,108 @@
+@page "/reportes/hierarchy"
+@attribute [Authorize(Roles = "Admin")]
+@inject AgentService AgentService
+
+<MudText Typo="Typo.h4" Class="mb-4">Agents Hierarchy</MudText>
+
+<MudPaper Elevation="1" Class="pa-4 mb-4">
+    <MudTextField @bind-Value="search" Placeholder="Buscar por agente o nombre..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="400" OnDebounceIntervalElapsed="OnSearchChanged" T="string" Class="w-100" />
+</MudPaper>
+
+<MudPaper Elevation="1" Class="pa-4">
+    @if (roots is null)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else if (roots.Count == 0)
+    {
+        <MudText Align="Align.Center">No se encontraron agentes.</MudText>
+    }
+    else
+    {
+        <MudTreeView T="int" Hover="true">
+            @foreach (var root in roots)
+            {
+                <AgentTreeNodeItem Node="root"
+                                    ExpandedIds="expandedIds"
+                                    SelectedId="selectedId"
+                                    OnSelect="OnNodeSelected"
+                                    OnExpand="OnNodeExpandChanged"
+                                    SearchQuery="search" />
+            }
+        </MudTreeView>
+    }
+</MudPaper>
+
+@code {
+    private List<AgentHierarchyNode>? roots;
+    private readonly Dictionary<int, int?> parentOf = new();
+    private readonly Dictionary<int, AgentHierarchySummary> agentById = new();
+    private readonly HashSet<int> expandedIds = new();
+    private int? selectedId;
+    private string search = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        roots = await AgentService.GetHierarchyAsync();
+        foreach (var root in roots)
+        {
+            Index(root, null);
+        }
+    }
+
+    private void Index(AgentHierarchyNode node, int? parentId)
+    {
+        parentOf[node.Agent.Id] = parentId;
+        agentById[node.Agent.Id] = node.Agent;
+        foreach (var child in node.Children)
+        {
+            Index(child, node.Agent.Id);
+        }
+    }
+
+    private void OnNodeSelected(int id)
+    {
+        selectedId = selectedId == id ? null : id;
+    }
+
+    private void OnNodeExpandChanged((int Id, bool Expanded) change)
+    {
+        if (change.Expanded)
+        {
+            expandedIds.Add(change.Id);
+        }
+        else
+        {
+            expandedIds.Remove(change.Id);
+        }
+    }
+
+    private Task OnSearchChanged()
+    {
+        if (string.IsNullOrWhiteSpace(search))
+        {
+            return Task.CompletedTask;
+        }
+
+        var matches = agentById.Values.Where(a =>
+            a.Code.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+            (a.Name != null && a.Name.Contains(search, StringComparison.OrdinalIgnoreCase)));
+
+        foreach (var match in matches)
+        {
+            ExpandAncestors(match.Id);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void ExpandAncestors(int id)
+    {
+        var current = parentOf.GetValueOrDefault(id);
+        while (current.HasValue)
+        {
+            expandedIds.Add(current.Value);
+            current = parentOf.GetValueOrDefault(current.Value);
+        }
+    }
+}

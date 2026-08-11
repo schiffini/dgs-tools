@@ -1,0 +1,56 @@
+@using DgsTool.Models
+
+<MudTreeViewItem T="int"
+                 Value="@Node.Agent.Id"
+                 Expanded="@ExpandedIds.Contains(Node.Agent.Id)"
+                 ExpandedChanged="@OnExpandedChanged"
+                 Selected="@(SelectedId == Node.Agent.Id)"
+                 OnClick="@(() => OnSelect.InvokeAsync(Node.Agent.Id))">
+    <BodyContent>
+        <div class="d-flex align-center" style="gap: 8px;">
+            <MudAvatar Size="Size.Small" Color="@(Node.Agent.Enable ? Color.Primary : Color.Default)">
+                @Initials
+            </MudAvatar>
+            <MudText Style="@(IsMatch ? "background: #FDECD8; border-radius: 4px; padding: 0 3px;" : null)">@Label</MudText>
+            @if (!Node.Agent.Enable)
+            {
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">Inactivo</MudChip>
+            }
+        </div>
+    </BodyContent>
+    <ChildContent>
+        @if (Node.Children.Count > 0)
+        {
+            @foreach (var child in Node.Children)
+            {
+                <AgentTreeNodeItem Node="child"
+                                    ExpandedIds="ExpandedIds"
+                                    SelectedId="SelectedId"
+                                    OnSelect="OnSelect"
+                                    OnExpand="OnExpand"
+                                    SearchQuery="SearchQuery" />
+            }
+        }
+    </ChildContent>
+</MudTreeViewItem>
+
+@code {
+    [Parameter, EditorRequired] public AgentHierarchyNode Node { get; set; } = null!;
+    [Parameter, EditorRequired] public HashSet<int> ExpandedIds { get; set; } = new();
+    [Parameter] public int? SelectedId { get; set; }
+    [Parameter, EditorRequired] public EventCallback<int> OnSelect { get; set; }
+    [Parameter, EditorRequired] public EventCallback<(int Id, bool Expanded)> OnExpand { get; set; }
+    [Parameter] public string? SearchQuery { get; set; }
+
+    private string Label => $"{Node.Agent.Code} — {Node.Agent.Name}";
+
+    private string Initials =>
+        string.IsNullOrWhiteSpace(Node.Agent.Code) ? "?" : Node.Agent.Code[..Math.Min(2, Node.Agent.Code.Length)].ToUpperInvariant();
+
+    private bool IsMatch =>
+        !string.IsNullOrWhiteSpace(SearchQuery) &&
+        (Node.Agent.Code.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
+         (Node.Agent.Name != null && Node.Agent.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)));
+
+    private Task OnExpandedChanged(bool expanded) => OnExpand.InvokeAsync((Node.Agent.Id, expanded));
+}
