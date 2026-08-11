@@ -1,0 +1,23 @@
+# Claude / BMad tooling
+.claude/
+_bmad/
+_bmad-output/
+CLAUDE.md
+
+# Visual Studio
+.vs/
+
+# Build results
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+
+# Rider / VS Code
+.idea/
+.vscode/
+
+# Logs
+*.log
