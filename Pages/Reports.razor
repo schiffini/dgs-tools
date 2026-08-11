@@ -1,0 +1,149 @@
+@page "/reportes"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Identity
+@inject ReportService ReportService
+@inject IDialogService Dialog
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthState
+
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h4">Reportes</MudText>
+    <AuthorizeView Roles="Admin">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="@OpenCreateDialog">Nuevo reporte</MudButton>
+    </AuthorizeView>
+</MudStack>
+
+<MudPaper Elevation="1" Class="pa-4 mb-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudTextField @bind-Value="search" Placeholder="Buscar reporte..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" T="string" Class="flex-grow-1" />
+        <MudSelect T="string" @bind-Value="selectedCategory" Label="Categoría" Variant="Variant.Outlined" Class="w-100" Style="max-width: 220px;" Clearable="true">
+            @foreach (var category in categories)
+            {
+                <MudSelectItem T="string" Value="@category">@category</MudSelectItem>
+            }
+        </MudSelect>
+    </MudStack>
+</MudPaper>
+
+<MudTable Items="@FilteredReports" Dense="true" Hover="true" Striped="true">
+    <ColGroup>
+        <col style="width: 60px;" />
+        <col />
+        <col style="width: 140px;" />
+        <col style="width: 100px;" />
+        <col style="width: 340px;" />
+    </ColGroup>
+    <HeaderContent>
+        <MudTh>Código</MudTh>
+        <MudTh>Nombre</MudTh>
+        <MudTh>Categoría</MudTh>
+        <MudTh>Estado</MudTh>
+        <MudTh>Acciones</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Código"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">@context.Code</MudChip></MudTd>
+        <MudTd DataLabel="Nombre">
+            <MudText Typo="Typo.body2">@context.Name</MudText>
+            <MudText Typo="Typo.caption" Class="text-secondary">@context.Description</MudText>
+        </MudTd>
+        <MudTd DataLabel="Categoría">@context.Category</MudTd>
+        <MudTd DataLabel="Estado">
+            <MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">@(context.IsActive ? "Activo" : "Inactivo")</MudChip>
+        </MudTd>
+        <MudTd DataLabel="Acciones">
+            <MudStack Row="true" Spacing="1">
+                <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Success" Size="Size.Small" Title="Ejecutar" OnClick="@(() => RunReport(context))" />
+                <MudIconButton Icon="@Icons.Material.Filled.History" Color="Color.Info" Size="Size.Small" Title="Ver ejecuciones" OnClick="@(() => ViewExecutions(context))" />
+                <AuthorizeView Roles="Admin" Context="authCtx">
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="Eliminar" OnClick="@(() => DeleteReport(context))" />
+                </AuthorizeView>
+            </MudStack>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText Align="Align.Center">No se encontraron reportes.</MudText>
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    private List<ReportDefinition> reports = [];
+    private List<string> categories = [];
+    private string search = string.Empty;
+    private string? selectedCategory;
+
+    private List<ReportDefinition> FilteredReports => reports
+        .Where(r => selectedCategory is null || r.Category == selectedCategory)
+        .Where(r => string.IsNullOrWhiteSpace(search) || r.Name.Contains(search, StringComparison.OrdinalIgnoreCase) || r.Code.Contains(search, StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        reports = await ReportService.GetAllAsync();
+        categories = reports.Select(r => r.Category).Distinct().OrderBy(c => c).ToList();
+    }
+
+    private async Task RunReport(ReportDefinition report)
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        var user = auth.User.Identity?.Name;
+
+        var parameters = new DialogParameters
+        {
+            { "report", report }
+        };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium };
+        var dialog = await Dialog.ShowAsync<ReportRunDialog>("Ejecutar reporte", parameters, options);
+        var result = await dialog.Result;
+        if (result is not null && !result.Canceled)
+        {
+            try
+            {
+                var execution = await ReportService.RunAsync(report.Id, user);
+                Snackbar.Add($"Reporte '{report.Name}' ejecutado con éxito.", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error al ejecutar: {ex.Message}", Severity.Error);
+            }
+            await LoadAsync();
+        }
+    }
+
+    private async Task ViewExecutions(ReportDefinition report)
+    {
+        var executions = await ReportService.GetExecutionsAsync(report.Id);
+        var parameters = new DialogParameters { { "executions", executions } };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large };
+        await Dialog.ShowAsync<ReportExecutionsDialog>("Ejecuciones del reporte", parameters, options);
+    }
+
+    private async Task DeleteReport(ReportDefinition report)
+    {
+        var confirmed = await Dialog.ShowMessageBoxAsync(
+            "Eliminar reporte",
+            $"¿Desea eliminar el reporte '{report.Name}'? Esta acción no se puede deshacer.",
+            yesText: "Eliminar", cancelText: "Cancelar");
+        if (confirmed == true)
+        {
+            await ReportService.DeleteAsync(report.Id);
+            Snackbar.Add("Reporte eliminado.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var dialog = await Dialog.ShowAsync<ReportCreateDialog>("Nuevo reporte");
+        var result = await dialog.Result;
+        if (result is not null && !result.Canceled)
+        {
+            Snackbar.Add("Reporte creado.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+}

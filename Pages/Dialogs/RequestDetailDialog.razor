@@ -1,0 +1,68 @@
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="1" Class="mb-3">
+            <MudText Typo="Typo.h6">@request.Subject</MudText>
+            <MudText Typo="Typo.caption" Class="text-secondary">
+                Solicitante: @request.RequesterName &nbsp;•&nbsp; Creada: @request.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+            </MudText>
+            <MudStack Row="true" Spacing="1">
+                <MudChip T="string" Size="Size.Small" Color="@PriorityColor(request.Priority)">Prioridad: @PriorityText(request.Priority)</MudChip>
+                <MudChip T="string" Size="Size.Small" Color="@StatusColor(request.Status)">@StatusText(request.Status)</MudChip>
+            </MudStack>
+        </MudStack>
+        <MudDivider Class="mb-3" />
+        <MudText Typo="Typo.body1" Class="mb-2">Descripción:</MudText>
+        <MudPaper Elevation="0" Class="pa-3 mb-3" Style="background: var(--mud-palette-background);">
+            <MudText Typo="Typo.body2" Class="text-pre-wrap">@request.Description</MudText>
+        </MudPaper>
+        @if (!string.IsNullOrWhiteSpace(request.Response))
+        {
+            <MudText Typo="Typo.body1" Class="mb-2">Respuesta:</MudText>
+            <MudPaper Elevation="0" Class="pa-3" Style="background: var(--mud-palette-background);">
+                <MudText Typo="Typo.body2" Class="text-pre-wrap">@request.Response</MudText>
+            </MudPaper>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="@(() => MudDialog.Cancel())">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public InformationRequest request { get; set; } = default!;
+
+    private static string StatusText(RequestStatus status) => status switch
+    {
+        RequestStatus.Pending => "Pendiente",
+        RequestStatus.InProgress => "En proceso",
+        RequestStatus.Completed => "Completada",
+        RequestStatus.Rejected => "Rechazada",
+        _ => "Desconocido"
+    };
+
+    private static Color StatusColor(RequestStatus status) => status switch
+    {
+        RequestStatus.Pending => Color.Warning,
+        RequestStatus.InProgress => Color.Info,
+        RequestStatus.Completed => Color.Success,
+        RequestStatus.Rejected => Color.Error,
+        _ => Color.Default
+    };
+
+    private static string PriorityText(RequestPriority priority) => priority switch
+    {
+        RequestPriority.Low => "Baja",
+        RequestPriority.High => "Alta",
+        RequestPriority.Urgent => "Urgente",
+        _ => "Normal"
+    };
+
+    private static Color PriorityColor(RequestPriority priority) => priority switch
+    {
+        RequestPriority.Low => Color.Default,
+        RequestPriority.High => Color.Warning,
+        RequestPriority.Urgent => Color.Error,
+        _ => Color.Primary
+    };
+}

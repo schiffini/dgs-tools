@@ -1,0 +1,89 @@
+@page "/reportes/players"
+@attribute [Authorize(Roles = "Admin")]
+@inject PlayerService PlayerService
+
+<MudText Typo="Typo.h4" Class="mb-4">Players</MudText>
+
+<MudAlert Severity="Severity.Warning" Class="mb-4" Dense="true">
+    Esta vista incluye credenciales de players (Password / Password Online). Acceso restringido a Admin.
+</MudAlert>
+
+<MudPaper Elevation="1" Class="pa-4 mb-4">
+    <MudTextField @bind-Value="search" Placeholder="Buscar por usuario o nombre..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="400" OnDebounceIntervalElapsed="OnSearchChanged" T="string" Class="w-100" />
+</MudPaper>
+
+<MudTable ServerData="ServerReload" Dense="true" Hover="true" Striped="true" @ref="table">
+    <HeaderContent>
+        <MudTh Style="width: 48px;"></MudTh>
+        <MudTh>Id</MudTh>
+        <MudTh>Player</MudTh>
+        <MudTh>Name</MudTh>
+        <MudTh>Password</MudTh>
+        <MudTh>Online Password</MudTh>
+        <MudTh>Line Type</MudTh>
+        <MudTh>Profile</MudTh>
+        <MudTh>Book</MudTh>
+        <MudTh>Email</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Agent</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>
+            <MudIconButton Icon="@(context.IsExpanded ? Icons.Material.Filled.Remove : Icons.Material.Filled.Add)"
+                           Size="Size.Small" Color="Color.Primary"
+                           OnClick="@(() => context.IsExpanded = !context.IsExpanded)" />
+        </MudTd>
+        <MudTd DataLabel="Id">@context.Id</MudTd>
+        <MudTd DataLabel="Player">@context.Username</MudTd>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Password">@context.Password</MudTd>
+        <MudTd DataLabel="Online Password">@context.OnlinePassword</MudTd>
+        <MudTd DataLabel="Line Type">@context.LineTypeId</MudTd>
+        <MudTd DataLabel="Profile">@context.ProfileId</MudTd>
+        <MudTd DataLabel="Book">@context.BookId</MudTd>
+        <MudTd DataLabel="Email">@context.Email</MudTd>
+        <MudTd DataLabel="Estado">@context.Status</MudTd>
+        <MudTd DataLabel="Agente">@context.AgentId</MudTd>
+    </RowTemplate>
+    <ChildRowContent>
+        @if (context.IsExpanded)
+        {
+            <MudTr>
+                <td colspan="12">
+                    <MudSimpleTable Dense="true" Elevation="0" Class="ma-2">
+                        <tbody>
+                            <tr><th>Credit Limit</th><td>@context.CreditLimit.ToString("N2")</td><th>Temp Credit</th><td>@context.TempCredit.ToString("N2")</td></tr>
+                            <tr><th>Online Access</th><td>@(context.OnlineAccess ? "Sí" : "No")</td><th>Profile Limits</th><td>@context.ProfileLimitsId</td></tr>
+                            <tr><th>Online Max Wager</th><td>@context.OnlineMaxWager.ToString("N2")</td><th>Online Min Wager</th><td>@context.OnlineMinWager.ToString("N2")</td></tr>
+                            <tr><th>Max Wager</th><td>@context.MaxWager.ToString("N2")</td><th>Min Wager</th><td>@context.MinWager.ToString("N2")</td></tr>
+                            <tr><th>Free Play Amount</th><td>@context.FreePlayAmount.ToString("N2")</td><th>Settled Figure</th><td>@context.SettledFigure.ToString("N2")</td></tr>
+                            <tr><th>Last Modification User</th><td>@context.LastModificationUserId</td><td></td><td></td></tr>
+                        </tbody>
+                    </MudSimpleTable>
+                </td>
+            </MudTr>
+        }
+    </ChildRowContent>
+    <NoRecordsContent>
+        <MudText Align="Align.Center">No se encontraron players.</MudText>
+    </NoRecordsContent>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new int[] { 25, 50, 100 }" />
+    </PagerContent>
+</MudTable>
+
+@code {
+    private MudTable<Player> table = null!;
+    private string search = string.Empty;
+
+    private async Task<TableData<Player>> ServerReload(TableState state, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await PlayerService.GetPagedAsync(search, state.Page, state.PageSize);
+        return new TableData<Player> { Items = items, TotalItems = totalCount };
+    }
+
+    private async Task OnSearchChanged()
+    {
+        await table.ReloadServerData();
+    }
+}

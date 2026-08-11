@@ -1,0 +1,183 @@
+@page "/solicitudes"
+@attribute [Authorize]
+@inject InformationRequestService RequestService
+@inject IDialogService Dialog
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthState
+
+<MudText Typo="Typo.h4" Class="mb-4">Solicitudes de Información</MudText>
+
+<MudTabs Rounded="true" Class="mb-4" Elevation="1">
+    <MudTabPanel Text="Nueva solicitud" Icon="@Icons.Material.Filled.AddBox">
+        <MudPaper Elevation="0" Class="pa-4">
+            <MudForm @ref="form">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" @bind-Value="model.Subject" Label="Asunto" Required="true" RequiredError="El asunto es obligatorio" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="RequestPriority" @bind-Value="model.Priority" Label="Prioridad" Variant="Variant.Outlined" Required="true" RequiredError="Seleccione una prioridad">
+                            <MudSelectItem T="RequestPriority" Value="RequestPriority.Low">Baja</MudSelectItem>
+                            <MudSelectItem T="RequestPriority" Value="RequestPriority.Normal">Normal</MudSelectItem>
+                            <MudSelectItem T="RequestPriority" Value="RequestPriority.High">Alta</MudSelectItem>
+                            <MudSelectItem T="RequestPriority" Value="RequestPriority.Urgent">Urgente</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" @bind-Value="model.Description" Label="Descripción de la solicitud" Lines="5" Required="true" RequiredError="Describa la información requerida" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Send" OnClick="@Submit" Disabled="@submitting">Enviar solicitud</MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudForm>
+        </MudPaper>
+    </MudTabPanel>
+    <MudTabPanel Text="Bandeja de gestión" Icon="@Icons.Material.Filled.Inbox">
+        <MudPaper Elevation="0" Class="pa-4">
+            <MudTable Items="@requests" Dense="true" Hover="true" Striped="true">
+                <ColGroup>
+                    <col />
+                    <col style="width: 110px;" />
+                    <col style="width: 110px;" />
+                    <col style="width: 120px;" />
+                    <col style="width: 150px;" />
+                    <col style="width: 120px;" />
+                </ColGroup>
+                <HeaderContent>
+                    <MudTh>Solicitud</MudTh>
+                    <MudTh>Prioridad</MudTh>
+                    <MudTh>Estado</MudTh>
+                    <MudTh>Fecha</MudTh>
+                    <MudTh>Asignado a</MudTh>
+                    <MudTh>Acciones</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Solicitud">
+                        <MudText Typo="Typo.body2">@context.Subject</MudText>
+                        <MudText Typo="Typo.caption" Class="text-secondary">@context.RequesterName</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Prioridad">
+                        <MudChip T="string" Size="Size.Small" Color="@PriorityColor(context.Priority)">@PriorityText(context.Priority)</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Estado">
+                        <MudChip T="string" Size="Size.Small" Color="@StatusColor(context.Status)">@StatusText(context.Status)</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Fecha">@context.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd DataLabel="Asignado a">@(context.AssignedTo ?? "-")</MudTd>
+                    <MudTd DataLabel="Acciones">
+                        <MudStack Row="true" Spacing="1">
+                            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info" Size="Size.Small" Title="Ver detalle" OnClick="@(() => ViewDetail(context))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Size="Size.Small" Title="Gestionar" OnClick="@(() => Manage(context))" />
+                        </MudStack>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Align="Align.Center">No hay solicitudes registradas.</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        </MudPaper>
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    private InformationRequest model { get; set; } = new();
+    private MudForm form = default!;
+    private bool submitting;
+    private List<InformationRequest> requests = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync() => requests = await RequestService.GetAllAsync();
+
+    private async Task Submit()
+    {
+        await form.ValidateAsync();
+        if (!form.IsValid) return;
+
+        submitting = true;
+        try
+        {
+            var auth = await AuthState.GetAuthenticationStateAsync();
+            model.RequesterId = auth.User.Identity?.Name;
+            model.RequesterName = auth.User.Identity?.Name ?? "Usuario";
+            await RequestService.CreateAsync(model);
+            Snackbar.Add("Solicitud enviada correctamente.", Severity.Success);
+            model = new InformationRequest();
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            submitting = false;
+        }
+    }
+
+    private async Task ViewDetail(InformationRequest request)
+    {
+        var parameters = new DialogParameters { { "request", request } };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium };
+        await Dialog.ShowAsync<RequestDetailDialog>("Detalle de la solicitud", parameters, options);
+    }
+
+    private async Task Manage(InformationRequest request)
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        var user = auth.User.Identity?.Name;
+
+        var parameters = new DialogParameters { { "request", request } };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium };
+        var dialog = await Dialog.ShowAsync<RequestManageDialog>("Gestionar solicitud", parameters, options);
+        var result = await dialog.Result;
+        if (result is not null && !result.Canceled)
+        {
+            var values = result.Data as (RequestStatus Status, string? Response)?;
+            if (values is { } tuple)
+            {
+                await RequestService.UpdateStatusAsync(request.Id, tuple.Status, tuple.Response, user);
+                Snackbar.Add("Solicitud actualizada.", Severity.Success);
+                await LoadAsync();
+            }
+        }
+    }
+
+    private static string StatusText(RequestStatus status) => status switch
+    {
+        RequestStatus.Pending => "Pendiente",
+        RequestStatus.InProgress => "En proceso",
+        RequestStatus.Completed => "Completada",
+        RequestStatus.Rejected => "Rechazada",
+        _ => "Desconocido"
+    };
+
+    private static Color StatusColor(RequestStatus status) => status switch
+    {
+        RequestStatus.Pending => Color.Warning,
+        RequestStatus.InProgress => Color.Info,
+        RequestStatus.Completed => Color.Success,
+        RequestStatus.Rejected => Color.Error,
+        _ => Color.Default
+    };
+
+    private static string PriorityText(RequestPriority priority) => priority switch
+    {
+        RequestPriority.Low => "Baja",
+        RequestPriority.High => "Alta",
+        RequestPriority.Urgent => "Urgente",
+        _ => "Normal"
+    };
+
+    private static Color PriorityColor(RequestPriority priority) => priority switch
+    {
+        RequestPriority.Low => Color.Default,
+        RequestPriority.High => Color.Warning,
+        RequestPriority.Urgent => Color.Error,
+        _ => Color.Primary
+    };
+}

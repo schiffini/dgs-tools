@@ -1,0 +1,41 @@
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6" Class="mb-1">@request.Subject</MudText>
+        <MudText Typo="Typo.caption" Class="text-secondary mb-3">Solicitante: @request.RequesterName</MudText>
+
+        <MudPaper Elevation="0" Class="pa-3 mb-3" Style="background: var(--mud-palette-background);">
+            <MudText Typo="Typo.body2" Class="text-pre-wrap">@request.Description</MudText>
+        </MudPaper>
+
+        <MudForm @ref="form">
+            <MudSelect T="RequestStatus" @bind-Value="status" Label="Estado" Variant="Variant.Outlined" Class="mb-3">
+                <MudSelectItem T="RequestStatus" Value="RequestStatus.Pending">Pendiente</MudSelectItem>
+                <MudSelectItem T="RequestStatus" Value="RequestStatus.InProgress">En proceso</MudSelectItem>
+                <MudSelectItem T="RequestStatus" Value="RequestStatus.Completed">Completada</MudSelectItem>
+                <MudSelectItem T="RequestStatus" Value="RequestStatus.Rejected">Rechazada</MudSelectItem>
+            </MudSelect>
+            <MudTextField T="string" @bind-Value="response" Label="Respuesta / Comentario" Lines="4" Variant="Variant.Outlined" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="@(() => MudDialog.Cancel())">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" OnClick="@Save">Guardar cambios</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public InformationRequest request { get; set; } = default!;
+
+    private MudForm form = default!;
+    private RequestStatus status;
+    private string response = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        status = request.Status;
+        response = request.Response ?? string.Empty;
+    }
+
+    private void Save() => MudDialog.Close(DialogResult.Ok((Status: status, Response: response)));
+}

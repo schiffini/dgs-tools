@@ -1,0 +1,179 @@
+@page "/valores"
+@attribute [Authorize]
+@inject ParameterValueService Parameters
+@inject IDialogService Dialog
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthState
+
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h4">Gestión de Valores</MudText>
+    <AuthorizeView Roles="Admin">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="@OpenCreateDialog">Nuevo parámetro</MudButton>
+    </AuthorizeView>
+</MudStack>
+
+<MudAlert Severity="Severity.Info" Class="mb-4" Variant="Variant.Outlined">
+    <MudText Typo="Typo.body2">Cada cambio de valor queda registrado en el historial de auditoría con usuario, fecha y motivo.</MudText>
+</MudAlert>
+
+<MudPaper Elevation="1" Class="pa-4 mb-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudTextField @bind-Value="search" Placeholder="Buscar parámetro..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" T="string" Class="flex-grow-1" />
+        <MudSelect T="string" @bind-Value="selectedCategory" Label="Categoría" Variant="Variant.Outlined" Class="w-100" Style="max-width: 220px;" Clearable="true">
+            @foreach (var category in categories)
+            {
+                <MudSelectItem T="string" Value="@category">@category</MudSelectItem>
+            }
+        </MudSelect>
+    </MudStack>
+</MudPaper>
+
+<MudTable Items="@FilteredParameters" Dense="true" Hover="true" Striped="true">
+    <ColGroup>
+        <col style="width: 90px;" />
+        <col />
+        <col style="width: 120px;" />
+        <col style="width: 100px;" />
+        <col style="width: 100px;" />
+        <col style="width: 120px;" />
+        <col style="width: 180px;" />
+    </ColGroup>
+    <HeaderContent>
+        <MudTh>Código</MudTh>
+        <MudTh>Nombre</MudTh>
+        <MudTh>Categoría</MudTh>
+        <MudTh>Tipo</MudTh>
+        <MudTh>Valor</MudTh>
+        <MudTh>Última actualización</MudTh>
+        <MudTh>Acciones</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Código"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">@context.Code</MudChip></MudTd>
+        <MudTd DataLabel="Nombre">
+            <MudText Typo="Typo.body2">@context.Name</MudText>
+            <MudText Typo="Typo.caption" Class="text-secondary">@context.Description</MudText>
+        </MudTd>
+        <MudTd DataLabel="Categoría">@context.Category</MudTd>
+        <MudTd DataLabel="Tipo">@DataTypeText(context.DataType)</MudTd>
+        <MudTd DataLabel="Valor">
+            <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined">
+                @context.Value @context.Unit
+            </MudChip>
+        </MudTd>
+        <MudTd DataLabel="Actualización">
+            <MudText Typo="Typo.caption">@context.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudText>
+            <MudText Typo="Typo.caption" Class="text-secondary">@context.UpdatedBy</MudText>
+        </MudTd>
+        <MudTd DataLabel="Acciones">
+            <MudStack Row="true" Spacing="1">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Size="Size.Small" Title="Cambiar valor" OnClick="@(() => EditValue(context))" />
+                <MudIconButton Icon="@Icons.Material.Filled.History" Color="Color.Info" Size="Size.Small" Title="Historial" OnClick="@(() => ViewHistory(context))" />
+                <AuthorizeView Roles="Admin" Context="authCtx">
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="Eliminar" OnClick="@(() => DeleteParameter(context))" />
+                </AuthorizeView>
+            </MudStack>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText Align="Align.Center">No se encontraron parámetros.</MudText>
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    private List<ParameterValue> parameters = [];
+    private List<string> categories = [];
+    private string search = string.Empty;
+    private string? selectedCategory;
+
+    private List<ParameterValue> FilteredParameters => parameters
+        .Where(p => selectedCategory is null || p.Category == selectedCategory)
+        .Where(p => string.IsNullOrWhiteSpace(search) || p.Name.Contains(search, StringComparison.OrdinalIgnoreCase) || p.Code.Contains(search, StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        parameters = await Parameters.GetAllAsync();
+        categories = parameters.Select(p => p.Category).Distinct().OrderBy(c => c).ToList();
+    }
+
+    private async Task EditValue(ParameterValue parameter)
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        var user = auth.User.Identity?.Name;
+
+        var parameters = new DialogParameters
+        {
+            { "parameter", parameter }
+        };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium };
+        var dialog = await Dialog.ShowAsync<ValueEditDialog>("Cambiar valor", parameters, options);
+        var result = await dialog.Result;
+        if (result is not null && !result.Canceled)
+        {
+            var values = result.Data as (string NewValue, string Reason)?;
+            if (values is { } tuple)
+            {
+                try
+                {
+                    await Parameters.UpdateValueAsync(parameter.Id, tuple.NewValue, tuple.Reason, user);
+                    Snackbar.Add($"Valor de '{parameter.Name}' actualizado.", Severity.Success);
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+                }
+                await LoadAsync();
+            }
+        }
+    }
+
+    private async Task ViewHistory(ParameterValue parameter)
+    {
+        var history = await Parameters.GetHistoryAsync(parameter.Id);
+        var parameters = new DialogParameters
+        {
+            { "history", history },
+            { "parameterName", parameter.Name }
+        };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large };
+        await Dialog.ShowAsync<ValueHistoryDialog>("Historial de cambios", parameters, options);
+    }
+
+    private async Task DeleteParameter(ParameterValue parameter)
+    {
+        var confirmed = await Dialog.ShowMessageBoxAsync(
+            "Eliminar parámetro",
+            $"¿Desea eliminar el parámetro '{parameter.Name}'? Su historial también será eliminado.",
+            yesText: "Eliminar", cancelText: "Cancelar");
+        if (confirmed == true)
+        {
+            await Parameters.DeleteAsync(parameter.Id);
+            Snackbar.Add("Parámetro eliminado.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var dialog = await Dialog.ShowAsync<ValueCreateDialog>("Nuevo parámetro");
+        var result = await dialog.Result;
+        if (result is not null && !result.Canceled)
+        {
+            Snackbar.Add("Parámetro creado.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private static string DataTypeText(ParameterDataType type) => type switch
+    {
+        ParameterDataType.Number => "Número",
+        ParameterDataType.Boolean => "Booleano",
+        ParameterDataType.Date => "Fecha",
+        _ => "Texto"
+    };
+}

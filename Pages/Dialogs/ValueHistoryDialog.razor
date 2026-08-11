@@ -1,0 +1,46 @@
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-3 text-secondary">Historial de @parameterName</MudText>
+        @if (history.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info">Este parámetro aún no tiene cambios registrados.</MudAlert>
+        }
+        else
+        {
+            <MudTable Items="@history" Dense="true" Hover="true">
+                <ColGroup>
+                    <col style="width: 150px;" />
+                    <col />
+                    <col />
+                    <col style="width: 150px;" />
+                </ColGroup>
+                <HeaderContent>
+                    <MudTh>Fecha</MudTh>
+                    <MudTh>Anterior</MudTh>
+                    <MudTh>Nuevo</MudTh>
+                    <MudTh>Usuario</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Fecha">@context.ChangedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                    <MudTd DataLabel="Anterior" Class="text-error">@context.OldValue</MudTd>
+                    <MudTd DataLabel="Nuevo" Class="text-success">@context.NewValue</MudTd>
+                    <MudTd DataLabel="Usuario">@context.ChangedBy</MudTd>
+                </RowTemplate>
+                <FooterContent>
+                    <MudTd ColSpan="4" DataLabel="">
+                        <MudText Typo="Typo.caption">Motivo: @history.FirstOrDefault()?.Reason</MudText>
+                    </MudTd>
+                </FooterContent>
+            </MudTable>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="@(() => MudDialog.Cancel())">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public List<ValueHistory> history { get; set; } = [];
+    [Parameter] public string parameterName { get; set; } = string.Empty;
+}

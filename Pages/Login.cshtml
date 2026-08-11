@@ -1,0 +1,200 @@
+@page "/login"
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<IdentityUser> SignInManager
+@inject UserManager<IdentityUser> UserManager
+@inject ILoggerFactory LoggerFactory
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Iniciar sesión - DgsTool</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: #F7F9FC;
+  }
+  .login-viewport {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .login-card {
+    width: 100%;
+    max-width: 420px;
+    background: #FFFFFF;
+    border-radius: 16px;
+    box-shadow: 0 6px 20px rgba(20,40,60,0.10), 0 2px 6px rgba(20,40,60,0.08);
+    padding: 40px 36px;
+  }
+  .brand-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .brand-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: #1B6B93;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  h1 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1b2733;
+    margin: 0;
+  }
+  .subtitle {
+    font-size: 0.875rem;
+    color: #6b7785;
+    margin: 4px 0 26px;
+  }
+  label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #45525f;
+    margin-bottom: 6px;
+  }
+  .field {
+    margin-bottom: 18px;
+  }
+  input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #cfd8e0;
+    font-size: 0.875rem;
+    color: #1b2733;
+    background: #fff;
+  }
+  input:focus, input:focus-visible {
+    outline: none;
+    border-color: #1B6B93;
+    box-shadow: 0 0 0 3px rgba(27,107,147,0.20);
+  }
+  .field.error input {
+    border-color: #C0392B;
+    box-shadow: 0 0 0 3px rgba(192,57,43,0.12);
+  }
+  .error-msg {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #FBEAE8;
+    color: #C0392B;
+    font-size: 0.875rem;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 18px;
+  }
+  button.primary {
+    width: 100%;
+    padding: 11px 0;
+    border-radius: 12px;
+    border: none;
+    background: #F0955F;
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.primary:hover { background: #e8874a; }
+  button.primary:focus, button.primary:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(27,107,147,0.35);
+  }
+  .hint {
+    text-align: center;
+    font-size: 0.72rem;
+    color: #9aa5b1;
+    margin-top: 18px;
+  }
+</style>
+</head>
+<body>
+<div class="login-viewport">
+  <div class="login-card">
+    <div class="brand-row">
+      <div class="brand-icon">🗂</div>
+      <div>
+        <h1>Bienvenido a dgs-tool</h1>
+      </div>
+    </div>
+    <p class="subtitle">Inicia sesión para continuar</p>
+
+    @if (HasError)
+    {
+        <div class="error-msg">⚠ @ErrorMessage</div>
+    }
+
+    <form method="post">
+        @Html.AntiForgeryToken()
+        <div class="field @(HasError ? "error" : "")">
+            <label for="username">Usuario</label>
+            <input type="text" id="username" name="username" value="@Username" autofocus autocomplete="username" required />
+        </div>
+        <div class="field @(HasError ? "error" : "")">
+            <label for="password">Contraseña</label>
+            <input type="password" id="password" name="password" value="" autocomplete="current-password" required />
+        </div>
+        <button type="submit" class="primary">Iniciar sesión</button>
+    </form>
+    <p class="hint">Acceso exclusivo para cuentas creadas por un administrador</p>
+  </div>
+</div>
+</body>
+</html>
+
+@functions {
+    private const string AdminEmail = "admin@dgstool.local";
+
+    public string? Username { get; set; }
+    public string? ErrorMessage { get; set; }
+    public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
+
+    public IActionResult OnGet()
+    {
+        if (SignInManager.IsSignedIn(User))
+        {
+            return Redirect("~/");
+        }
+
+        return Page();
+    }
+
+    public async Task<IActionResult> OnPostAsync(string username, string password)
+    {
+        Username = username;
+
+        if (username == "Admin" && password == "Admin123")
+        {
+            var user = await UserManager.FindByEmailAsync(AdminEmail);
+            if (user is not null)
+            {
+                await SignInManager.SignInAsync(user, isPersistent: false);
+                return Redirect("~/");
+            }
+
+            LoggerFactory.CreateLogger("Login").LogWarning(
+                "Hardcoded login succeeded but seeded admin user '{Email}' was not found.", AdminEmail);
+            ErrorMessage = "No fue posible iniciar sesión. Contacta a un administrador.";
+            return Page();
+        }
+
+        ErrorMessage = "Usuario o contraseña incorrectos. Verifica e intenta de nuevo.";
+        return Page();
+    }
+}

@@ -1,0 +1,69 @@
+@inject ParameterValueService Parameters
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form">
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="4">
+                    <MudTextField T="string" @bind-Value="model.Code" Label="Código" Required="true" RequiredError="El código es obligatorio" />
+                </MudItem>
+                <MudItem xs="12" sm="8">
+                    <MudTextField T="string" @bind-Value="model.Name" Label="Nombre" Required="true" RequiredError="El nombre es obligatorio" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="model.Description" Label="Descripción" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" @bind-Value="model.Category" Label="Categoría" Required="true" RequiredError="La categoría es obligatoria" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="ParameterDataType" @bind-Value="model.DataType" Label="Tipo de dato" Variant="Variant.Outlined">
+                        <MudSelectItem T="ParameterDataType" Value="ParameterDataType.String">Texto</MudSelectItem>
+                        <MudSelectItem T="ParameterDataType" Value="ParameterDataType.Number">Número</MudSelectItem>
+                        <MudSelectItem T="ParameterDataType" Value="ParameterDataType.Boolean">Booleano</MudSelectItem>
+                        <MudSelectItem T="ParameterDataType" Value="ParameterDataType.Date">Fecha</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" @bind-Value="model.Value" Label="Valor inicial" Required="true" RequiredError="El valor es obligatorio" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" @bind-Value="model.Unit" Label="Unidad (opcional)" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSwitch T="bool" @bind-Value="model.IsActive" Color="Color.Primary">Activo</MudSwitch>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="@(() => MudDialog.Cancel())">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" OnClick="@Save" Disabled="@saving">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public IMudDialogInstance MudDialog { get; set; } = default!;
+    private ParameterValue model { get; set; } = new();
+    private MudForm form = default!;
+    private bool saving;
+
+    private async Task Save()
+    {
+        await form.ValidateAsync();
+        if (!form.IsValid) return;
+
+        saving = true;
+        try
+        {
+            await Parameters.CreateAsync(model, "admin@dgstool.local");
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            saving = false;
+        }
+    }
+}

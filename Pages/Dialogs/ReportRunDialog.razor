@@ -1,0 +1,20 @@
+<MudDialog>
+    <DialogContent>
+        <MudAlert Severity="Severity.Info" Class="mb-3" Variant="Variant.Outlined">
+            Se ejecutará el reporte <strong>@report.Name</strong> (@report.Code).
+        </MudAlert>
+        <MudText Typo="Typo.body2" Class="mb-2">@report.Description</MudText>
+        <MudText Typo="Typo.caption" Class="text-secondary">
+            Categoría: @report.Category
+        </MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="@(() => MudDialog.Cancel())">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow" OnClick="@(() => MudDialog.Close(DialogResult.Ok(true)))">Ejecutar ahora</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public ReportDefinition report { get; set; } = default!;
+}

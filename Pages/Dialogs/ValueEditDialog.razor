@@ -1,0 +1,35 @@
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body1" Class="mb-1">
+            <strong>@parameter.Name</strong> (@parameter.Code)
+        </MudText>
+        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary" Class="mb-4">
+            Valor actual: @parameter.Value @parameter.Unit
+        </MudChip>
+
+        <MudForm @ref="form">
+            <MudTextField T="string" @bind-Value="newValue" Label="Nuevo valor" Required="true" RequiredError="El nuevo valor es obligatorio" Variant="Variant.Outlined" Class="mb-3" />
+            <MudTextField T="string" @bind-Value="reason" Label="Motivo del cambio (auditoría)" Required="true" RequiredError="Indique el motivo del cambio" Variant="Variant.Outlined" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="@(() => MudDialog.Cancel())">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" OnClick="@Save">Guardar cambio</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public ParameterValue parameter { get; set; } = default!;
+
+    private string newValue = string.Empty;
+    private string reason = string.Empty;
+    private MudForm form = default!;
+
+    private async Task Save()
+    {
+        await form.ValidateAsync();
+        if (!form.IsValid) return;
+        MudDialog.Close(DialogResult.Ok((NewValue: newValue, Reason: reason)));
+    }
+}

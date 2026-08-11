@@ -1,0 +1,23 @@
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<IdentityUser> SignInManager
+@inject NavigationManager Navigation
+
+<AuthorizeView>
+    <Authorized>
+        <MudButton Variant="Variant.Text" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.AccountCircle" OnClick="@(() => Navigation.NavigateTo("Identity/Account/Manage"))">
+            @context.User.Identity?.Name
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.Logout" OnClick="@Logout">Salir</MudButton>
+    </Authorized>
+    <NotAuthorized>
+        <MudButton Variant="Variant.Outlined" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.Login" OnClick="@(() => Navigation.NavigateTo("login"))">Iniciar sesión</MudButton>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private async Task Logout()
+    {
+        await SignInManager.SignOutAsync();
+        Navigation.NavigateTo("/", true);
+    }
+}

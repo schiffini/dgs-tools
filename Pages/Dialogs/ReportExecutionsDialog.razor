@@ -1,0 +1,51 @@
+<MudDialog>
+    <DialogContent>
+        @if (executions.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info">Este reporte aún no tiene ejecuciones.</MudAlert>
+        }
+        else
+        {
+            <MudTable Items="@executions" Dense="true" Hover="true">
+                <HeaderContent>
+                    <MudTh>Inicio</MudTh>
+                    <MudTh>Fin</MudTh>
+                    <MudTh>Estado</MudTh>
+                    <MudTh>Archivo</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Inicio">@context.StartedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                    <MudTd DataLabel="Fin">@(context.FinishedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "-")</MudTd>
+                    <MudTd DataLabel="Estado">
+                        <MudChip T="string" Size="Size.Small" Color="@StatusColor(context.Status)">@StatusText(context.Status)</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Archivo">@(context.ResultFile ?? "-")</MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="@(() => MudDialog.Cancel())">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public List<ReportExecution> executions { get; set; } = [];
+
+    private static string StatusText(ExecutionStatus status) => status switch
+    {
+        ExecutionStatus.Completed => "Completado",
+        ExecutionStatus.Running => "En proceso",
+        ExecutionStatus.Failed => "Fallido",
+        _ => "Pendiente"
+    };
+
+    private static Color StatusColor(ExecutionStatus status) => status switch
+    {
+        ExecutionStatus.Completed => Color.Success,
+        ExecutionStatus.Failed => Color.Error,
+        ExecutionStatus.Running => Color.Info,
+        _ => Color.Default
+    };
+}

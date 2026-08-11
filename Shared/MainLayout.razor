@@ -1,0 +1,61 @@
+@inherits LayoutComponentBase
+@using MudBlazor
+@using DgsTool.Themes
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>DgsTool - Plataforma Corporativa</PageTitle>
+
+<MudThemeProvider Theme="@CorporateTheme.Instance" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="2">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerOpen = !DrawerOpen)" />
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.BusinessCenter" Style="font-size: 28px;" />
+            <MudText Typo="Typo.h6">DgsTool</MudText>
+        </MudStack>
+        <MudSpacer />
+        <MudText Typo="Typo.body2" Class="d-none d-sm-block" Style="color: #FFFFFFB0;">
+            Plataforma de Reportes y Gestión
+        </MudText>
+        <MudSpacer />
+        <LoginDisplay />
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="@DrawerOpen" Variant="@DrawerVariant.Responsive" ClipMode="@DrawerClipMode.Always">
+        <MudNavMenu>
+            <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+            <MudNavGroup Title="Reportes" Icon="@Icons.Material.Filled.Assessment" Expanded="true">
+                <MudNavLink Href="/reportes" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.List">Listado</MudNavLink>
+                <AuthorizeView Roles="Admin" Context="playersAuthCtx">
+                    <MudNavLink Href="/reportes/players" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.People">Players</MudNavLink>
+                </AuthorizeView>
+            </MudNavGroup>
+            <MudNavLink Href="/valores" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Tune">Gestión de Valores</MudNavLink>
+            <MudNavLink Href="/solicitudes" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.MarkEmailUnread">Solicitudes</MudNavLink>
+        </MudNavMenu>
+        <MudDivider Class="my-2" />
+        <AuthorizeView Roles="Admin">
+            <MudNavMenu>
+                <MudNavLink Href="Identity/Account/Register" Icon="@Icons.Material.Filled.PersonAddAlt1">Registrar usuario</MudNavLink>
+                <MudNavLink Href="Identity/Account/Manage" Icon="@Icons.Material.Filled.Settings">Administración</MudNavLink>
+            </MudNavMenu>
+        </AuthorizeView>
+        <MudDivider Class="my-2" />
+        <MudText Typo="Typo.caption" Align="Align.Center" Style="color: #FFFFFF80;">
+            © 2026 DgsTool
+        </MudText>
+    </MudDrawer>
+
+    <MudMainContent Class="pb-8 px-4">
+        @Body
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool DrawerOpen = true;
+}
