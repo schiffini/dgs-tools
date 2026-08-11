@@ -1,0 +1,81 @@
+@page "/reportes/agents"
+@attribute [Authorize(Roles = "Admin")]
+@inject AgentService AgentService
+
+<MudText Typo="Typo.h4" Class="mb-4">Agents</MudText>
+
+<MudAlert Severity="Severity.Warning" Class="mb-4" Dense="true">
+    Esta vista incluye credenciales de agentes (Password / Password Online). Acceso restringido a Admin.
+</MudAlert>
+
+<MudPaper Elevation="1" Class="pa-4 mb-4">
+    <MudTextField @bind-Value="search" Placeholder="Buscar por agente o nombre..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="400" OnDebounceIntervalElapsed="OnSearchChanged" T="string" Class="w-100" />
+</MudPaper>
+
+<MudTable ServerData="ServerReload" Dense="true" Hover="true" Striped="true" @ref="table">
+    <HeaderContent>
+        <MudTh Style="width: 48px;"></MudTh>
+        <MudTh>IdAgent</MudTh>
+        <MudTh>Agent</MudTh>
+        <MudTh>Password</MudTh>
+        <MudTh>Online Password</MudTh>
+        <MudTh>IdBook</MudTh>
+        <MudTh>Distributor</MudTh>
+        <MudTh>Is Distributor</MudTh>
+        <MudTh>Is Distributed</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>
+            <MudIconButton Icon="@(context.IsExpanded ? Icons.Material.Filled.Remove : Icons.Material.Filled.Add)"
+                           Size="Size.Small" Color="Color.Primary"
+                           OnClick="@(() => context.IsExpanded = !context.IsExpanded)" />
+        </MudTd>
+        <MudTd DataLabel="IdAgent">@context.Id</MudTd>
+        <MudTd DataLabel="Agent">@context.Code</MudTd>
+        <MudTd DataLabel="Password">@context.Password</MudTd>
+        <MudTd DataLabel="Online Password">@context.OnlinePassword</MudTd>
+        <MudTd DataLabel="IdBook">@context.BookId</MudTd>
+        <MudTd DataLabel="Distributor">@context.Distributor</MudTd>
+        <MudTd DataLabel="Is Distributor">@(context.IsDistributor ? "Sí" : "No")</MudTd>
+        <MudTd DataLabel="Is Distributed">@(context.IsDistributed == true ? "Sí" : "No")</MudTd>
+    </RowTemplate>
+    <ChildRowContent>
+        @if (context.IsExpanded)
+        {
+            <MudTr>
+                <td colspan="9">
+                    <MudSimpleTable Dense="true" Elevation="0" Class="ma-2">
+                        <tbody>
+                            <tr><th>IdCurrency</th><td>@context.IdCurrency</td><th>IdAgentType</th><td>@context.IdAgentType</td></tr>
+                            <tr><th>Enable</th><td>@(context.Enable ? "Sí" : "No")</td><th>Online Access</th><td>@(context.OnlineAccess ? "Sí" : "No")</td></tr>
+                            <tr><th>Last Modification</th><td>@context.LastModification</td><th>Last Modification User</th><td>@context.LastModificationUser</td></tr>
+                            <tr><th>Master Agent Enabled</th><td>@(context.MasterAgentEnabled ? "Sí" : "No")</td><th>Email</th><td>@context.Email</td></tr>
+                        </tbody>
+                    </MudSimpleTable>
+                </td>
+            </MudTr>
+        }
+    </ChildRowContent>
+    <NoRecordsContent>
+        <MudText Align="Align.Center">No se encontraron agentes.</MudText>
+    </NoRecordsContent>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new int[] { 25, 50, 100 }" />
+    </PagerContent>
+</MudTable>
+
+@code {
+    private MudTable<Agent> table = null!;
+    private string search = string.Empty;
+
+    private async Task<TableData<Agent>> ServerReload(TableState state, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await AgentService.GetPagedAsync(search, state.Page, state.PageSize);
+        return new TableData<Agent> { Items = items, TotalItems = totalCount };
+    }
+
+    private async Task OnSearchChanged()
+    {
+        await table.ReloadServerData();
+    }
+}

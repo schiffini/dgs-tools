@@ -33,6 +33,7 @@
                 <MudNavLink Href="/reportes" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.List">Listado</MudNavLink>
                 <AuthorizeView Roles="Admin" Context="playersAuthCtx">
                     <MudNavLink Href="/reportes/players" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.People">Players</MudNavLink>
+                    <MudNavLink Href="/reportes/agents" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.SupportAgent">Agents</MudNavLink>
                 </AuthorizeView>
             </MudNavGroup>
             <MudNavLink Href="/valores" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Tune">Gestión de Valores</MudNavLink>

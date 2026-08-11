@@ -15,6 +15,7 @@ public class Player
     public string? Email { get; set; }
     public string Status { get; set; } = string.Empty;
     public int? AgentId { get; set; }
+    public Agent? Agent { get; set; }
 
     public decimal CreditLimit { get; set; }
     public decimal TempCredit { get; set; }

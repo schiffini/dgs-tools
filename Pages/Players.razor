@@ -25,6 +25,7 @@
         <MudTh>Book</MudTh>
         <MudTh>Email</MudTh>
         <MudTh>Status</MudTh>
+        <MudTh>IdAgent</MudTh>
         <MudTh>Agent</MudTh>
     </HeaderContent>
     <RowTemplate>
@@ -38,18 +39,19 @@
         <MudTd DataLabel="Name">@context.Name</MudTd>
         <MudTd DataLabel="Password">@context.Password</MudTd>
         <MudTd DataLabel="Online Password">@context.OnlinePassword</MudTd>
-        <MudTd DataLabel="Line Type">@context.LineTypeId</MudTd>
-        <MudTd DataLabel="Profile">@context.ProfileId</MudTd>
-        <MudTd DataLabel="Book">@context.BookId</MudTd>
+        <MudTd DataLabel="LineType">@context.LineTypeId</MudTd>
+        <MudTd DataLabel="IdProfile">@context.ProfileId</MudTd>
+        <MudTd DataLabel="IdBook">@context.BookId</MudTd>
         <MudTd DataLabel="Email">@context.Email</MudTd>
-        <MudTd DataLabel="Estado">@context.Status</MudTd>
-        <MudTd DataLabel="Agente">@context.AgentId</MudTd>
+        <MudTd DataLabel="Status">@context.Status</MudTd>
+        <MudTd DataLabel="IdAgent">@context.AgentId</MudTd>
+        <MudTd DataLabel="Agent">@context.Agent?.Name</MudTd>
     </RowTemplate>
     <ChildRowContent>
         @if (context.IsExpanded)
         {
             <MudTr>
-                <td colspan="12">
+                <td colspan="13">
                     <MudSimpleTable Dense="true" Elevation="0" Class="ma-2">
                         <tbody>
                             <tr><th>Credit Limit</th><td>@context.CreditLimit.ToString("N2")</td><th>Temp Credit</th><td>@context.TempCredit.ToString("N2")</td></tr>

@@ -31,6 +31,7 @@ builder.Services.AddScoped<InformationRequestService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<SeedDataService>();
 builder.Services.AddScoped<PlayerService>();
+builder.Services.AddScoped<AgentService>();
 builder.Services.AddMudServices();
 
 var app = builder.Build();

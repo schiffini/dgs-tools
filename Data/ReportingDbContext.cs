@@ -16,6 +16,7 @@ public class ReportingDbContext : DbContext
     }
 
     public DbSet<Player> Players => Set<Player>();
+    public DbSet<Agent> Agents => Set<Agent>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -47,6 +48,34 @@ public class ReportingDbContext : DbContext
             entity.Property(p => p.SettledFigure).HasColumnName("SettledFigure");
             entity.Property(p => p.ProfileLimitsId).HasColumnName("IdProfileLimits");
             entity.Property(p => p.LastModificationUserId).HasColumnName("LastModificationUser");
+
+            entity.HasOne(p => p.Agent)
+                .WithMany()
+                .HasForeignKey(p => p.AgentId)
+                .HasPrincipalKey(a => a.Id);
+        });
+
+        builder.Entity<Agent>(entity =>
+        {
+            entity.ToTable("AGENT", t => t.ExcludeFromMigrations());
+            entity.HasKey(a => a.Id);
+            entity.Property(a => a.Id).HasColumnName("IdAgent");
+            entity.Property(a => a.Name).HasColumnName("Name");
+            entity.Property(a => a.Code).HasColumnName("Agent");
+            entity.Property(a => a.Password).HasColumnName("Password");
+            entity.Property(a => a.OnlinePassword).HasColumnName("OnlinePassword");
+            entity.Property(a => a.BookId).HasColumnName("IdBook");
+            entity.Property(a => a.Distributor).HasColumnName("Distributor");
+            entity.Property(a => a.IsDistributor).HasColumnName("IsDistributor");
+            entity.Property(a => a.IsDistributed).HasColumnName("IsDistributed");
+            entity.Property(a => a.IdCurrency).HasColumnName("IdCurrency");
+            entity.Property(a => a.IdAgentType).HasColumnName("IdAgentType");
+            entity.Property(a => a.Enable).HasColumnName("Enable");
+            entity.Property(a => a.OnlineAccess).HasColumnName("OnlineAccess");
+            entity.Property(a => a.LastModification).HasColumnName("LastModification");
+            entity.Property(a => a.LastModificationUser).HasColumnName("LastModificationUser");
+            entity.Property(a => a.MasterAgentEnabled).HasColumnName("MasterAgentEnabled");
+            entity.Property(a => a.Email).HasColumnName("Email");
         });
     }
 

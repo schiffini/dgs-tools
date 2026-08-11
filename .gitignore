@@ -21,3 +21,8 @@ obj/
 
 # Logs
 *.log
+
+# App settings (contain real connection strings/secrets)
+appsettings.json
+appsettings.Development.json
+appsettings.*.json
