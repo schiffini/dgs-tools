@@ -2,6 +2,7 @@
 
 <MudTreeViewItem T="int"
                  Value="@Node.Agent.Id"
+                 CanExpand="@(Node.Children.Count > 0)"
                  Expanded="@ExpandedIds.Contains(Node.Agent.Id)"
                  ExpandedChanged="@OnExpandedChanged"
                  Selected="@(SelectedId == Node.Agent.Id)"
