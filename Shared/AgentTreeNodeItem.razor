@@ -2,11 +2,12 @@
 
 <MudTreeViewItem T="int"
                  Value="@Node.Agent.Id"
-                 CanExpand="@(Node.Children.Count > 0)"
+                 CanExpand="@HasChildren"
+                 Disabled="@(!HasChildren)"
                  Expanded="@ExpandedIds.Contains(Node.Agent.Id)"
                  ExpandedChanged="@OnExpandedChanged"
                  Selected="@(SelectedId == Node.Agent.Id)"
-                 OnClick="@HandleClick">
+                 OnClick="@(() => OnSelect.InvokeAsync(Node.Agent.Id))">
     <BodyContent>
         <div class="d-flex align-center" style="gap: 8px;">
             <MudAvatar Size="Size.Small" Color="@(Node.Agent.Enable ? Color.Primary : Color.Default)">
@@ -17,6 +18,10 @@
             {
                 <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">Inactivo</MudChip>
             }
+            @if (Level == 0 && HasChildren)
+            {
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Primary">@Node.CountDescendants() agentes</MudChip>
+            }
         </div>
     </BodyContent>
     <ChildContent>
@@ -25,6 +30,7 @@
             @foreach (var child in Node.Children)
             {
                 <AgentTreeNodeItem Node="child"
+                                    Level="@(Level + 1)"
                                     ExpandedIds="ExpandedIds"
                                     SelectedId="SelectedId"
                                     OnSelect="OnSelect"
@@ -37,6 +43,7 @@
 
 @code {
     [Parameter, EditorRequired] public AgentHierarchyNode Node { get; set; } = null!;
+    [Parameter] public int Level { get; set; }
     [Parameter, EditorRequired] public HashSet<int> ExpandedIds { get; set; } = new();
     [Parameter] public int? SelectedId { get; set; }
     [Parameter, EditorRequired] public EventCallback<int> OnSelect { get; set; }
@@ -58,7 +65,4 @@
          (Node.Agent.Name != null && Node.Agent.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)));
 
     private Task OnExpandedChanged(bool expanded) => OnExpand.InvokeAsync((Node.Agent.Id, expanded));
-
-    // Leaf agents have nothing underneath them — clicking is a dead end, so it does nothing.
-    private Task HandleClick() => HasChildren ? OnSelect.InvokeAsync(Node.Agent.Id) : Task.CompletedTask;
 }
