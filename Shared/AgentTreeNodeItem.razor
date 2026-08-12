@@ -6,7 +6,7 @@
                  Expanded="@ExpandedIds.Contains(Node.Agent.Id)"
                  ExpandedChanged="@OnExpandedChanged"
                  Selected="@(SelectedId == Node.Agent.Id)"
-                 OnClick="@(() => OnSelect.InvokeAsync(Node.Agent.Id))">
+                 OnClick="@HandleClick">
     <BodyContent>
         <div class="d-flex align-center" style="gap: 8px;">
             <MudAvatar Size="Size.Small" Color="@(Node.Agent.Enable ? Color.Primary : Color.Default)">
@@ -20,7 +20,7 @@
         </div>
     </BodyContent>
     <ChildContent>
-        @if (Node.Children.Count > 0)
+        @if (HasChildren && IsExpanded)
         {
             @foreach (var child in Node.Children)
             {
@@ -43,6 +43,10 @@
     [Parameter, EditorRequired] public EventCallback<(int Id, bool Expanded)> OnExpand { get; set; }
     [Parameter] public string? SearchQuery { get; set; }
 
+    private bool HasChildren => Node.Children.Count > 0;
+
+    private bool IsExpanded => ExpandedIds.Contains(Node.Agent.Id);
+
     private string Label => $"{Node.Agent.Code} — {Node.Agent.Name}";
 
     private string Initials =>
@@ -54,4 +58,7 @@
          (Node.Agent.Name != null && Node.Agent.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)));
 
     private Task OnExpandedChanged(bool expanded) => OnExpand.InvokeAsync((Node.Agent.Id, expanded));
+
+    // Leaf agents have nothing underneath them — clicking is a dead end, so it does nothing.
+    private Task HandleClick() => HasChildren ? OnSelect.InvokeAsync(Node.Agent.Id) : Task.CompletedTask;
 }
