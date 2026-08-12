@@ -8,7 +8,6 @@ namespace DgsTool.Services;
 public class SeedDataService
 {
     private readonly ApplicationDbContext _db;
-    private readonly UserManager<IdentityUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly ILogger<SeedDataService> _logger;
 
@@ -17,12 +16,10 @@ public class SeedDataService
 
     public SeedDataService(
         ApplicationDbContext db,
-        UserManager<IdentityUser> userManager,
         RoleManager<IdentityRole> roleManager,
         ILogger<SeedDataService> logger)
     {
         _db = db;
-        _userManager = userManager;
         _roleManager = roleManager;
         _logger = logger;
     }
@@ -33,7 +30,6 @@ public class SeedDataService
 
         await EnsureRoleAsync(AdminRole);
         await EnsureRoleAsync(ConsultorRole);
-        await EnsureAdminUserAsync();
         await SeedBusinessDataAsync();
     }
 
@@ -43,21 +39,6 @@ public class SeedDataService
         {
             await _roleManager.CreateAsync(new IdentityRole(role));
             _logger.LogInformation("Rol {Role} creado", role);
-        }
-    }
-
-    private async Task EnsureAdminUserAsync()
-    {
-        const string email = "admin@dgstool.local";
-        if (await _userManager.FindByEmailAsync(email) is not null) return;
-
-        var user = new IdentityUser { UserName = email, Email = email, EmailConfirmed = true };
-        var result = await _userManager.CreateAsync(user, "Admin123!");
-        if (result.Succeeded)
-        {
-            await _userManager.AddToRoleAsync(user, AdminRole);
-            await _userManager.AddToRoleAsync(user, ConsultorRole);
-            _logger.LogInformation("Usuario admin {Email} creado", email);
         }
     }
 

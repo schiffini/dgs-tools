@@ -17,6 +17,7 @@ public class ReportingDbContext : DbContext
 
     public DbSet<Player> Players => Set<Player>();
     public DbSet<Agent> Agents => Set<Agent>();
+    public DbSet<AppUser> AppUsers => Set<AppUser>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -76,6 +77,19 @@ public class ReportingDbContext : DbContext
             entity.Property(a => a.LastModificationUser).HasColumnName("LastModificationUser");
             entity.Property(a => a.MasterAgentEnabled).HasColumnName("MasterAgentEnabled");
             entity.Property(a => a.Email).HasColumnName("Email");
+        });
+
+        builder.Entity<AppUser>(entity =>
+        {
+            entity.ToTable("USERS", t => t.ExcludeFromMigrations());
+            entity.HasKey(u => u.Id);
+            entity.Property(u => u.Id).HasColumnName("IdUser");
+            entity.Property(u => u.LoginName).HasColumnName("LoginName");
+            entity.Property(u => u.Password).HasColumnName("Password");
+            entity.Property(u => u.Name).HasColumnName("Name");
+            entity.Property(u => u.Status).HasColumnName("Status");
+            entity.Property(u => u.Type).HasColumnName("Type");
+            entity.Property(u => u.IdUserProfile).HasColumnName("IdUserProfile");
         });
     }
 

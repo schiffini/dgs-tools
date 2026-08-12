@@ -1,7 +1,10 @@
 @page "/login"
 @using Microsoft.AspNetCore.Identity
+@using DgsTool.Services
+@using DgsTool.Models
 @inject SignInManager<IdentityUser> SignInManager
-@inject UserManager<IdentityUser> UserManager
+@inject ExternalUserService ExternalUserService
+@inject ShadowLoginProvisioningService ShadowLoginProvisioningService
 @inject ILoggerFactory LoggerFactory
 <!DOCTYPE html>
 <html lang="es">
@@ -152,15 +155,13 @@
         </div>
         <button type="submit" class="primary">Iniciar sesión</button>
     </form>
-    <p class="hint">Acceso exclusivo para cuentas creadas por un administrador</p>
+    <p class="hint">Acceso exclusivo para cuentas activas del staff</p>
   </div>
 </div>
 </body>
 </html>
 
 @functions {
-    private const string AdminEmail = "admin@dgstool.local";
-
     public string? Username { get; set; }
     public string? ErrorMessage { get; set; }
     public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
@@ -178,23 +179,36 @@
     public async Task<IActionResult> OnPostAsync(string username, string password)
     {
         Username = username;
+        var logger = LoggerFactory.CreateLogger("Login");
 
-        if (username == "Admin" && password == "Admin123")
+        try
         {
-            var user = await UserManager.FindByEmailAsync(AdminEmail);
-            if (user is not null)
+            var externalUser = await ExternalUserService.ValidateAsync(username, password);
+            if (externalUser is null)
             {
-                await SignInManager.SignInAsync(user, isPersistent: false);
-                return Redirect("~/");
+                logger.LogWarning("Failed login attempt for username '{Username}'.", username);
+                ErrorMessage = "Usuario o contraseña incorrectos. Verifica e intenta de nuevo.";
+                return Page();
             }
 
-            LoggerFactory.CreateLogger("Login").LogWarning(
-                "Hardcoded login succeeded but seeded admin user '{Email}' was not found.", AdminEmail);
+            var shadowUser = await ShadowLoginProvisioningService.GetOrCreateAsync(externalUser, SeedDataService.AdminRole);
+            if (shadowUser is null)
+            {
+                logger.LogWarning(
+                    "Failed to provision shadow local user for external login '{LoginName}'.",
+                    externalUser.LoginName);
+                ErrorMessage = "No fue posible iniciar sesión. Contacta a un administrador.";
+                return Page();
+            }
+
+            await SignInManager.SignInAsync(shadowUser, isPersistent: false);
+            return Redirect("~/");
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Unexpected error during login for username '{Username}'.", username);
             ErrorMessage = "No fue posible iniciar sesión. Contacta a un administrador.";
             return Page();
         }
-
-        ErrorMessage = "Usuario o contraseña incorrectos. Verifica e intenta de nuevo.";
-        return Page();
     }
 }

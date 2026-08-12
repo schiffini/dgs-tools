@@ -22,6 +22,7 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>();
+builder.Services.ConfigureApplicationCookie(DgsTool.Configuration.AuthCookieOptions.Configure);
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider<IdentityUser>>();
@@ -32,6 +33,8 @@ builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<SeedDataService>();
 builder.Services.AddScoped<PlayerService>();
 builder.Services.AddScoped<AgentService>();
+builder.Services.AddScoped<ExternalUserService>();
+builder.Services.AddScoped<ShadowLoginProvisioningService>();
 builder.Services.AddMudServices();
 
 var app = builder.Build();
