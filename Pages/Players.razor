@@ -2,6 +2,10 @@
 @attribute [Authorize(Roles = "Admin")]
 @implements IAsyncDisposable
 @inject PlayerService PlayerService
+@inject PlayerEditService PlayerEditService
+@inject IDialogService Dialog
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthState
 @inject ILogger<Players> Logger
 
 <MudText Typo="Typo.h4" Class="mb-4">Players</MudText>
@@ -14,7 +18,7 @@
     <MudTextField @bind-Value="search" Placeholder="Buscar por usuario o nombre..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="400" OnDebounceIntervalElapsed="OnSearchChanged" T="string" Class="w-100" />
 </MudPaper>
 
-<MudTable ServerData="ServerReload" Dense="true" Hover="true" Striped="true" @ref="table">
+<MudTable T="Player" ServerData="ServerReload" Dense="true" Hover="true" Striped="true" @ref="table" RowClass="cursor-pointer" OnRowClick="OnRowClicked">
     <HeaderContent>
         <MudTh Style="width: 48px;"></MudTh>
         <MudTh>Id</MudTh>
@@ -33,9 +37,11 @@
     </HeaderContent>
     <RowTemplate>
         <MudTd>
-            <MudIconButton Icon="@(context.IsExpanded ? Icons.Material.Filled.Remove : Icons.Material.Filled.Add)"
-                           Size="Size.Small" Color="Color.Primary"
-                           OnClick="@(() => context.IsExpanded = !context.IsExpanded)" />
+            <span @onclick:stopPropagation="true">
+                <MudIconButton Icon="@(context.IsExpanded ? Icons.Material.Filled.Remove : Icons.Material.Filled.Add)"
+                               Size="Size.Small" Color="Color.Primary"
+                               OnClick="@(() => context.IsExpanded = !context.IsExpanded)" />
+            </span>
         </MudTd>
         <MudTd DataLabel="Id">@context.Id</MudTd>
         <MudTd DataLabel="Player">@context.Username</MudTd>
@@ -136,6 +142,59 @@
     private async Task OnSearchChanged()
     {
         await table.ReloadServerData();
+    }
+
+    private async Task OnRowClicked(TableRowClickEventArgs<Player> args)
+    {
+        if (args.Item is null)
+        {
+            return;
+        }
+
+        await OpenEditDialogAsync(args.Item);
+    }
+
+    private async Task OpenEditDialogAsync(Player player)
+    {
+        var parameters = new DialogParameters
+        {
+            { nameof(PlayerEditDialog.Player), player },
+            { nameof(PlayerEditDialog.OnSaveRequested), (Func<PlayerEditModel, Task<bool>>)(changes => SavePlayerAsync(player, changes)) }
+        };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true, BackdropClick = false };
+        var dialog = await Dialog.ShowAsync<PlayerEditDialog>($"Editar Player - {player.Username}", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            // Saved successfully (PlayerEditDialog only closes with Ok once the write
+            // succeeded) - refresh the grid so the table reflects the new values.
+            await table.ReloadServerData();
+        }
+    }
+
+    /// <summary>
+    /// Performs the actual write and Snackbar feedback. Called from inside
+    /// PlayerEditDialog's Save handler (not after it closes) so a failed save can keep the
+    /// dialog open with the user's typed values intact, per the frozen acceptance criterion.
+    /// </summary>
+    private async Task<bool> SavePlayerAsync(Player player, PlayerEditModel changes)
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        var loginName = auth.User.Identity?.Name ?? "desconocido";
+
+        try
+        {
+            await PlayerEditService.UpdateAsync(player.Id, changes, loginName);
+            Snackbar.Add("Cambios guardados correctamente.", Severity.Success);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to save edits for player {PlayerId}.", player.Id);
+            Snackbar.Add("No se pudieron guardar los cambios. Intenta de nuevo.", Severity.Error);
+            return false;
+        }
     }
 
     private async Task RunBalanceTimerAsync(PeriodicTimer timer, CancellationToken cancellationToken)

@@ -1,0 +1,30 @@
+<MudDialog>
+    <DialogContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Color="Color.Warning" />
+            <MudText Typo="Typo.h6">@Title</MudText>
+        </MudStack>
+
+        @foreach (var change in Changes)
+        {
+            <MudText Typo="Typo.body2" Class="mb-2">
+                Vas a cambiar el @change.FieldLabel de este player de <b>@change.OldValue</b> a <b>@change.NewValue</b>.
+            </MudText>
+        }
+
+        <MudText Typo="Typo.body2" Class="mb-3">
+            Este cambio puede afectar otras configuraciones relacionadas (límites por perfil, permisos).
+        </MudText>
+        <MudText Typo="Typo.body2">¿Confirmas?</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="@(() => MudDialog.Cancel())">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="@(() => MudDialog.Close(DialogResult.Ok(true)))">Confirmar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public string Title { get; set; } = "Confirmar cambio estructural";
+    [Parameter] public List<StructuralFieldChange> Changes { get; set; } = new();
+}

@@ -1,0 +1,372 @@
+@using System.Text.RegularExpressions
+@inject IDialogService DialogService
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-4">
+            Los cambios se validan mientras escribís. Password/Online Password quedan en blanco salvo que quieras cambiarlos.
+        </MudText>
+
+        <MudForm @ref="form" @bind-IsValid="formValid" @bind-Errors="formErrors">
+
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Perfil / Contacto</MudText>
+            <MudStack Row="true" Spacing="3" Class="mb-3">
+                <MudTextField T="string" @bind-Value="model.Name" Label="Name" Variant="Variant.Outlined" Immediate="true"
+                              Validation="@(new Func<string, string?>(ValidateName))" Class="flex-grow-1" />
+                @if (statusIsRecognized)
+                {
+                    <MudSelect T="string" @bind-Value="model.Status" Label="Status" Variant="Variant.Outlined" Style="min-width: 180px;">
+                        @foreach (var statusOption in StatusLabels)
+                        {
+                            <MudSelectItem T="string" Value="@statusOption.Key">@statusOption.Value</MudSelectItem>
+                        }
+                    </MudSelect>
+                }
+                else
+                {
+                    <MudTextField T="string" Value="@original.Status" Label="Status" Variant="Variant.Outlined" ReadOnly="true"
+                                   HelperText="Valor no reconocido en el sistema de origen; se muestra de solo lectura y no se modifica." Style="min-width: 180px;" />
+                }
+            </MudStack>
+            <MudTextField T="string" @bind-Value="model.Email" Label="Email" Variant="Variant.Outlined" Immediate="true"
+                          Validation="@(new Func<string, string?>(ValidateEmail))" Class="mb-4" />
+
+            <MudDivider Class="mb-3" />
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Financieros</MudText>
+            <MudStack Row="true" Spacing="3" Class="mb-3">
+                <MudNumericField T="decimal" @bind-Value="model.CreditLimit" Label="Credit Limit" Variant="Variant.Outlined" Immediate="true" Format="F2"
+                                 Validation="@(new Func<decimal, string?>(ValidateNonNegative))" Class="flex-grow-1" />
+                <MudNumericField T="decimal" @bind-Value="model.TempCredit" Label="Temp Credit" Variant="Variant.Outlined" Immediate="true" Format="F2"
+                                 Validation="@(new Func<decimal, string?>(ValidateNonNegative))" Class="flex-grow-1" />
+            </MudStack>
+            <MudStack Row="true" Spacing="3" Class="mb-3">
+                <MudNumericField T="decimal" @bind-Value="model.MaxWager" @bind-Value:after="Revalidate" Label="Max Wager" Variant="Variant.Outlined" Immediate="true" Format="F2"
+                                 Validation="@(new Func<decimal, string?>(ValidateMaxWager))" Class="flex-grow-1" />
+                <MudNumericField T="decimal" @bind-Value="model.MinWager" @bind-Value:after="Revalidate" Label="Min Wager" Variant="Variant.Outlined" Immediate="true" Format="F2"
+                                 Validation="@(new Func<decimal, string?>(ValidateMinWager))" Class="flex-grow-1" />
+            </MudStack>
+            <MudStack Row="true" Spacing="3" Class="mb-3">
+                <MudNumericField T="decimal" @bind-Value="model.OnlineMaxWager" @bind-Value:after="Revalidate" Label="Online Max Wager" Variant="Variant.Outlined" Immediate="true" Format="F2"
+                                 Validation="@(new Func<decimal, string?>(ValidateOnlineMaxWager))" Class="flex-grow-1" />
+                <MudNumericField T="decimal" @bind-Value="model.OnlineMinWager" @bind-Value:after="Revalidate" Label="Online Min Wager" Variant="Variant.Outlined" Immediate="true" Format="F2"
+                                 Validation="@(new Func<decimal, string?>(ValidateOnlineMinWager))" Class="flex-grow-1" />
+            </MudStack>
+            <MudNumericField T="decimal" @bind-Value="model.FreePlayAmount" Label="Free Play Amount" Variant="Variant.Outlined" Immediate="true" Format="F2"
+                             Validation="@(new Func<decimal, string?>(ValidateNonNegative))" Class="mb-4" />
+
+            <MudDivider Class="mb-3" />
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Credenciales</MudText>
+            <MudStack Row="true" Spacing="3" Class="mb-4">
+                <MudTextField T="string" @bind-Value="model.Password" Label="Password (nueva)" Placeholder="Dejar en blanco para no cambiar"
+                              Variant="Variant.Outlined" InputType="InputType.Password" Immediate="true"
+                              Validation="@(new Func<string, string?>(ValidatePassword))" Class="flex-grow-1" />
+                <MudTextField T="string" @bind-Value="model.OnlinePassword" Label="Online Password (nueva)" Placeholder="Dejar en blanco para no cambiar"
+                              Variant="Variant.Outlined" InputType="InputType.Password" Immediate="true"
+                              Validation="@(new Func<string, string?>(ValidateOnlinePassword))" Class="flex-grow-1" />
+            </MudStack>
+
+            <MudDivider Class="mb-3" />
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Estructurales</MudText>
+            <MudStack Row="true" Spacing="3" Class="mb-3">
+                <MudNumericField T="int?" @bind-Value="model.AgentId" Label="Agent (Id)" Variant="Variant.Outlined" Immediate="true" Class="flex-grow-1" />
+                <MudNumericField T="short" @bind-Value="model.ProfileId" Label="Profile (Id)" Variant="Variant.Outlined" Immediate="true" Class="flex-grow-1" />
+            </MudStack>
+            <MudStack Row="true" Spacing="3" Class="mb-3">
+                <MudNumericField T="short?" @bind-Value="model.BookId" Label="Book (Id)" Variant="Variant.Outlined" Immediate="true" Class="flex-grow-1" />
+                <MudNumericField T="short" @bind-Value="model.LineTypeId" Label="Line Type (Id)" Variant="Variant.Outlined" Immediate="true" Class="flex-grow-1" />
+            </MudStack>
+            <MudSwitch T="bool" @bind-Value="model.OnlineAccess" Label="Online Access" Color="Color.Primary" />
+
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="@(() => MudDialog.Cancel())" Disabled="@isSaving">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="@Save" Disabled="@(!formValid || !IsDirty() || isSaving)">
+            @if (isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Guardar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public Player Player { get; set; } = default!;
+
+    /// <summary>
+    /// Performs the actual save (calls PlayerEditService.UpdateAsync, shows the
+    /// success/error Snackbar) - owned by the caller (Pages/Players.razor) per the Code Map,
+    /// but invoked from here so the dialog can stay open with the typed values intact if the
+    /// save throws, per the frozen "save fails" acceptance criterion.
+    /// </summary>
+    [Parameter] public Func<PlayerEditModel, Task<bool>> OnSaveRequested { get; set; } = default!;
+
+    private static readonly Dictionary<string, string> StatusLabels = new()
+    {
+        ["E"] = "Enabled",
+        ["D"] = "Disabled",
+        ["A"] = "Active"
+    };
+
+    private static readonly Regex EmailRegex = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
+    private static readonly Regex PasswordComplexityRegex = new(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$", RegexOptions.Compiled);
+
+    private Player original = default!;
+    private PlayerEditModel model = default!;
+    private MudForm form = default!;
+    private bool formValid;
+    private string[] formErrors = Array.Empty<string>();
+    private bool isSaving;
+    private bool statusIsRecognized;
+
+    protected override void OnInitialized()
+    {
+        original = Player;
+        model = PlayerEditModel.FromPlayer(Player);
+        statusIsRecognized = StatusLabels.ContainsKey(original.Status);
+    }
+
+    private bool IsDirty() =>
+        original.Name != model.Name ||
+        original.Email != model.Email ||
+        original.Status != model.Status ||
+        original.CreditLimit != model.CreditLimit ||
+        original.MaxWager != model.MaxWager ||
+        original.MinWager != model.MinWager ||
+        original.OnlineMaxWager != model.OnlineMaxWager ||
+        original.OnlineMinWager != model.OnlineMinWager ||
+        original.TempCredit != model.TempCredit ||
+        original.FreePlayAmount != model.FreePlayAmount ||
+        original.LineTypeId != model.LineTypeId ||
+        original.ProfileId != model.ProfileId ||
+        original.BookId != model.BookId ||
+        original.AgentId != model.AgentId ||
+        original.OnlineAccess != model.OnlineAccess ||
+        !string.IsNullOrEmpty(model.Password) ||
+        !string.IsNullOrEmpty(model.OnlinePassword);
+
+    private async Task Revalidate()
+    {
+        if (form is not null)
+        {
+            await form.ValidateAsync();
+        }
+    }
+
+    private async Task Save()
+    {
+        // Guard set up-front (before any await) so a fast double-click on "Guardar" can't
+        // start a second overlapping Save() call before the Disabled binding re-renders.
+        if (isSaving)
+        {
+            return;
+        }
+
+        isSaving = true;
+        try
+        {
+            await form.ValidateAsync();
+            if (!formValid || !IsDirty())
+            {
+                return;
+            }
+
+            var structuralChanges = GetStructuralChanges();
+            if (structuralChanges.Count > 0)
+            {
+                var confirmed = await ConfirmStructuralChangeAsync(structuralChanges);
+                if (!confirmed)
+                {
+                    // Cancel: back to this dialog, all typed values intact, nothing written.
+                    return;
+                }
+            }
+
+            var success = await OnSaveRequested(model);
+            if (success)
+            {
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            // On failure: stay open with the typed values; the caller already showed the
+            // generic error Snackbar.
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private List<StructuralFieldChange> GetStructuralChanges()
+    {
+        var changes = new List<StructuralFieldChange>();
+
+        if (original.AgentId != model.AgentId)
+        {
+            changes.Add(new StructuralFieldChange("Agent", FormatNullable(original.AgentId), FormatNullable(model.AgentId)));
+        }
+
+        if (original.ProfileId != model.ProfileId)
+        {
+            changes.Add(new StructuralFieldChange("Profile", original.ProfileId.ToString(), model.ProfileId.ToString()));
+        }
+
+        if (original.BookId != model.BookId)
+        {
+            changes.Add(new StructuralFieldChange("Book", FormatNullable(original.BookId), FormatNullable(model.BookId)));
+        }
+
+        if (original.LineTypeId != model.LineTypeId)
+        {
+            changes.Add(new StructuralFieldChange("Line Type", original.LineTypeId.ToString(), model.LineTypeId.ToString()));
+        }
+
+        if (original.OnlineAccess != model.OnlineAccess)
+        {
+            changes.Add(new StructuralFieldChange("Online Access", original.OnlineAccess ? "Sí" : "No", model.OnlineAccess ? "Sí" : "No"));
+        }
+
+        return changes;
+    }
+
+    private static string FormatNullable<T>(T? value) where T : struct =>
+        value?.ToString() ?? "(sin asignar)";
+
+    private async Task<bool> ConfirmStructuralChangeAsync(List<StructuralFieldChange> changes)
+    {
+        var title = changes.Count == 1
+            ? $"Confirmar cambio de {changes[0].FieldLabel}"
+            : "Confirmar cambios estructurales";
+
+        var dialogParameters = new DialogParameters
+        {
+            { nameof(StructuralChangeConfirmDialog.Title), title },
+            { nameof(StructuralChangeConfirmDialog.Changes), changes }
+        };
+        var options = new DialogOptions
+        {
+            CloseButton = false,
+            DefaultFocus = DefaultFocus.FirstChild,
+            MaxWidth = MaxWidth.Small,
+            BackdropClick = false
+        };
+
+        var dialog = await DialogService.ShowAsync<StructuralChangeConfirmDialog>(title, dialogParameters, options);
+        var result = await dialog.Result;
+        return result is { Canceled: false };
+    }
+
+    private static string? ValidateName(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return null;
+        }
+
+        return value.Length > 100 ? "El nombre no puede superar 100 caracteres." : null;
+    }
+
+    private static string? ValidateEmail(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (value.Length > 50)
+        {
+            return "El email no puede superar 50 caracteres.";
+        }
+
+        return EmailRegex.IsMatch(value) ? null : "Ingresa un email válido.";
+    }
+
+    private static string? ValidateNonNegative(decimal value)
+    {
+        if (value < 0)
+        {
+            return "El monto no puede ser negativo.";
+        }
+
+        return Math.Round(value, 2) != value ? "El monto admite hasta 2 decimales." : null;
+    }
+
+    private string? ValidateMaxWager(decimal value)
+    {
+        var basic = ValidateNonNegative(value);
+        if (basic is not null)
+        {
+            return basic;
+        }
+
+        return value < model.MinWager ? "El máximo debe ser mayor o igual al mínimo." : null;
+    }
+
+    private string? ValidateMinWager(decimal value)
+    {
+        var basic = ValidateNonNegative(value);
+        if (basic is not null)
+        {
+            return basic;
+        }
+
+        return model.MaxWager < value ? "El máximo debe ser mayor o igual al mínimo." : null;
+    }
+
+    private string? ValidateOnlineMaxWager(decimal value)
+    {
+        var basic = ValidateNonNegative(value);
+        if (basic is not null)
+        {
+            return basic;
+        }
+
+        return value < model.OnlineMinWager ? "El máximo debe ser mayor o igual al mínimo." : null;
+    }
+
+    private string? ValidateOnlineMinWager(decimal value)
+    {
+        var basic = ValidateNonNegative(value);
+        if (basic is not null)
+        {
+            return basic;
+        }
+
+        return model.OnlineMaxWager < value ? "El máximo debe ser mayor o igual al mínimo." : null;
+    }
+
+    private static string? ValidatePassword(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return null; // blank = no change
+        }
+
+        if (value.Length > 20)
+        {
+            return "La contraseña no puede superar 20 caracteres.";
+        }
+
+        return PasswordComplexityRegex.IsMatch(value)
+            ? null
+            : "La contraseña debe tener mayúsculas, minúsculas, números y símbolos.";
+    }
+
+    private static string? ValidateOnlinePassword(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return null; // blank = no change
+        }
+
+        if (value.Length > 255)
+        {
+            return "La contraseña online no puede superar 255 caracteres.";
+        }
+
+        return PasswordComplexityRegex.IsMatch(value)
+            ? null
+            : "La contraseña debe tener mayúsculas, minúsculas, números y símbolos.";
+    }
+}

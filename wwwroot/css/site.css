@@ -25,3 +25,7 @@ html, body {
 .mud-layout .mud-main-content {
     padding-top: 88px;
 }
+
+.cursor-pointer {
+    cursor: pointer;
+}

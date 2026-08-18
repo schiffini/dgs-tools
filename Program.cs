@@ -18,6 +18,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 var reportingConnectionString = builder.Configuration.GetConnectionString("ReportingConnection") ?? throw new InvalidOperationException("Connection string 'ReportingConnection' not found.");
 builder.Services.AddDbContext<ReportingDbContext>(options =>
     options.UseSqlServer(reportingConnectionString));
+builder.Services.AddDbContext<PlayerWriteDbContext>(options =>
+    options.UseSqlServer(reportingConnectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
     .AddRoles<IdentityRole>()
@@ -32,6 +34,7 @@ builder.Services.AddScoped<InformationRequestService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<SeedDataService>();
 builder.Services.AddScoped<PlayerService>();
+builder.Services.AddScoped<PlayerEditService>();
 builder.Services.AddScoped<AgentService>();
 builder.Services.AddScoped<ExternalUserService>();
 builder.Services.AddScoped<ShadowLoginProvisioningService>();
