@@ -6,11 +6,11 @@ namespace DgsTool.Models;
 /// </summary>
 public class AppUser
 {
-    public int Id { get; set; }
+    public short Id { get; set; }
     public string LoginName { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
     public string? Name { get; set; }
     public bool Status { get; set; }
     public byte Type { get; set; }
-    public int? IdUserProfile { get; set; }
+    public short? IdUserProfile { get; set; }
 }

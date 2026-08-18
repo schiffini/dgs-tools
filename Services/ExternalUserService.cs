@@ -26,11 +26,11 @@ public class ExternalUserService
             return null;
         }
 
-        var normalizedLoginName = loginName.ToUpperInvariant();
+        var normalizedLoginName = loginName.ToUpper();
 
         var candidate = await _db.AppUsers.AsNoTracking()
             .Where(u => u.Type == 0 && u.Status)
-            .Where(u => u.LoginName.ToUpperInvariant() == normalizedLoginName)
+            .Where(u => u.LoginName.ToUpper() == normalizedLoginName)
             .FirstOrDefaultAsync();
 
         if (candidate is null)
