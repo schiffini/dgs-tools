@@ -1,6 +1,8 @@
 @page "/reportes/players"
 @attribute [Authorize(Roles = "Admin")]
+@implements IAsyncDisposable
 @inject PlayerService PlayerService
+@inject ILogger<Players> Logger
 
 <MudText Typo="Typo.h4" Class="mb-4">Players</MudText>
 
@@ -27,6 +29,7 @@
         <MudTh>Status</MudTh>
         <MudTh>IdAgent</MudTh>
         <MudTh>Agent</MudTh>
+        <MudTh>Balance</MudTh>
     </HeaderContent>
     <RowTemplate>
         <MudTd>
@@ -46,12 +49,21 @@
         <MudTd DataLabel="Status">@context.Status</MudTd>
         <MudTd DataLabel="IdAgent">@context.AgentId</MudTd>
         <MudTd DataLabel="Agent">@context.Agent?.Name</MudTd>
+        <MudTd DataLabel="Balance">
+            <MudChip T="string" Size="Size.Small" Style="@GetBalanceChipStyle(context.Id)">@GetBalanceText(context.Id)</MudChip>
+            @if (consecutiveFailures >= StaleFailureThreshold)
+            {
+                <MudTooltip Text="Saldo desactualizado">
+                    <MudIcon Icon="@Icons.Material.Filled.SyncProblem" Size="Size.Small" Color="Color.Warning" Class="ml-1" />
+                </MudTooltip>
+            }
+        </MudTd>
     </RowTemplate>
     <ChildRowContent>
         @if (context.IsExpanded)
         {
             <MudTr>
-                <td colspan="13">
+                <td colspan="14">
                     <MudSimpleTable Dense="true" Elevation="0" Class="ma-2">
                         <tbody>
                             <tr><th>Credit Limit</th><td>@context.CreditLimit.ToString("N2")</td><th>Temp Credit</th><td>@context.TempCredit.ToString("N2")</td></tr>
@@ -75,17 +87,178 @@
 </MudTable>
 
 @code {
+    private const string PositiveColor = "#2E8B57";
+    private const string NegativeColor = "#C0392B";
+    private const string MutedColor = "#9AA5AF";
+    private const int StaleFailureThreshold = 3;
+    private static readonly System.Globalization.CultureInfo BalanceCulture = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+
     private MudTable<Player> table = null!;
     private string search = string.Empty;
+
+    private List<int> currentPlayerIds = new();
+    private Dictionary<int, decimal> balances = new();
+    private int consecutiveFailures;
+
+    private PeriodicTimer? balanceTimer;
+    private CancellationTokenSource? balanceTimerCts;
+    private Task? balanceTimerTask;
+
+    protected override void OnInitialized()
+    {
+        balanceTimerCts = new CancellationTokenSource();
+        balanceTimer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+        balanceTimerTask = RunBalanceTimerAsync(balanceTimer, balanceTimerCts.Token);
+    }
 
     private async Task<TableData<Player>> ServerReload(TableState state, CancellationToken cancellationToken)
     {
         var (items, totalCount) = await PlayerService.GetPagedAsync(search, state.Page, state.PageSize);
+        var newPlayerIds = items.Select(p => p.Id).ToList();
+        currentPlayerIds = newPlayerIds;
+
+        try
+        {
+            balances = await PlayerService.GetBalancesAsync(newPlayerIds, cancellationToken);
+            consecutiveFailures = 0;
+        }
+        catch (Exception ex)
+        {
+            // Balance lookup is a secondary concern for this page - a transient failure here
+            // must not crash the whole grid. Leave `balances` as whatever it was (empty on
+            // first load); rows just keep showing their last known value or the placeholder.
+            Logger.LogWarning(ex, "Failed to load player balances for the current page.");
+        }
+
         return new TableData<Player> { Items = items, TotalItems = totalCount };
     }
 
     private async Task OnSearchChanged()
     {
         await table.ReloadServerData();
+    }
+
+    private async Task RunBalanceTimerAsync(PeriodicTimer timer, CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await RefreshBalancesAsync();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected on navigation-away / disposal: the timer loop simply stops.
+        }
+    }
+
+    private async Task RefreshBalancesAsync()
+    {
+        // The whole read-query-write sequence is dispatched through InvokeAsync so it runs
+        // serialized on the circuit's sync context, same as any other component state change -
+        // this avoids concurrent access to the scoped ReportingDbContext from a background Task.
+        await InvokeAsync(async () =>
+        {
+            var idsSnapshot = currentPlayerIds;
+            Dictionary<int, decimal> newBalances;
+            try
+            {
+                newBalances = await PlayerService.GetBalancesAsync(idsSnapshot, balanceTimerCts?.Token ?? CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Balance refresh tick failed.");
+
+                if (!ReferenceEquals(idsSnapshot, currentPlayerIds))
+                {
+                    // The visible page/search changed while this tick's query was in flight -
+                    // the failure doesn't apply to what's on screen now, so don't count it.
+                    return;
+                }
+
+                var crossedStaleThreshold = ++consecutiveFailures == StaleFailureThreshold;
+                if (crossedStaleThreshold)
+                {
+                    StateHasChanged();
+                }
+                return;
+            }
+
+            if (!ReferenceEquals(idsSnapshot, currentPlayerIds))
+            {
+                // The page/search changed (or the timer's very first tick raced ahead of the
+                // initial ServerReload) while this query was in flight - discard these stale
+                // results entirely rather than overwriting balances for the page now on screen.
+                return;
+            }
+
+            var wasStale = consecutiveFailures >= StaleFailureThreshold;
+            var valuesChanged = !BalancesEqual(balances, newBalances);
+            balances = newBalances;
+            consecutiveFailures = 0;
+
+            if (valuesChanged || wasStale)
+            {
+                StateHasChanged();
+            }
+        });
+    }
+
+    private static bool BalancesEqual(Dictionary<int, decimal> a, Dictionary<int, decimal> b)
+    {
+        if (a.Count != b.Count)
+        {
+            return false;
+        }
+
+        foreach (var (playerId, balance) in a)
+        {
+            if (!b.TryGetValue(playerId, out var otherBalance) || balance != otherBalance)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private string GetBalanceText(int playerId) =>
+        balances.TryGetValue(playerId, out var balance) ? balance.ToString("C2", BalanceCulture) : "—";
+
+    private string GetBalanceChipStyle(int playerId)
+    {
+        var color = balances.TryGetValue(playerId, out var balance)
+            ? balance switch
+            {
+                > 0 => PositiveColor,
+                < 0 => NegativeColor,
+                _ => MutedColor
+            }
+            : MutedColor;
+
+        return $"background-color: {color}; color: #FFFFFF; font-weight: 600;";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        balanceTimerCts?.Cancel();
+        balanceTimer?.Dispose();
+
+        if (balanceTimerTask is not null)
+        {
+            try
+            {
+                await balanceTimerTask;
+            }
+            catch (Exception ex)
+            {
+                // The timer loop already swallows its own OperationCanceledException; anything
+                // that reaches here is unexpected, so log it rather than losing it silently.
+                Logger.LogWarning(ex, "Balance timer loop did not shut down cleanly.");
+            }
+        }
+
+        balanceTimerCts?.Dispose();
     }
 }

@@ -33,4 +33,16 @@ public class PlayerService
 
         return (items, totalCount);
     }
+
+    public async Task<Dictionary<int, decimal>> GetBalancesAsync(IReadOnlyCollection<int> playerIds, CancellationToken cancellationToken = default)
+    {
+        if (playerIds.Count == 0)
+        {
+            return new Dictionary<int, decimal>();
+        }
+
+        return await _db.PlayerBalances.AsNoTracking()
+            .Where(b => playerIds.Contains(b.IdPlayer))
+            .ToDictionaryAsync(b => b.IdPlayer, b => b.CurrentBalance, cancellationToken);
+    }
 }

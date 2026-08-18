@@ -18,6 +18,7 @@ public class ReportingDbContext : DbContext
     public DbSet<Player> Players => Set<Player>();
     public DbSet<Agent> Agents => Set<Agent>();
     public DbSet<AppUser> AppUsers => Set<AppUser>();
+    public DbSet<PlayerBalance> PlayerBalances => Set<PlayerBalance>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -90,6 +91,14 @@ public class ReportingDbContext : DbContext
             entity.Property(u => u.Status).HasColumnName("Status");
             entity.Property(u => u.Type).HasColumnName("Type");
             entity.Property(u => u.IdUserProfile).HasColumnName("IdUserProfile");
+        });
+
+        builder.Entity<PlayerBalance>(entity =>
+        {
+            entity.ToTable("PLAYERSTATISTIC", t => t.ExcludeFromMigrations());
+            entity.HasKey(b => b.IdPlayer);
+            entity.Property(b => b.IdPlayer).HasColumnName("IdPlayer");
+            entity.Property(b => b.CurrentBalance).HasColumnName("CurrentBalance");
         });
     }
 
